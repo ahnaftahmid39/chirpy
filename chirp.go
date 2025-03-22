@@ -2,46 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/ahnaftahmid39/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
-const lenThresHold = 140
-
-func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	type reqBody struct {
-		Body string `json:"body"`
-	}
-
-	type errResBody struct {
-		Error string `json:"error"`
-	}
-
-	type resBody struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	body := &reqBody{}
-	err := decoder.Decode(body)
-
-	if err != nil {
-		respondWithError(w, 400, "Unmarshaling failed")
-		return
-	}
-
-	if len(body.Body) > lenThresHold {
-		respondWithError(w, 400, "Chirp is too long")
-		return
-	}
-
-	res := &resBody{
-		CleanedBody: replaceProfane(body.Body),
-	}
-
-	respondWithJSON(w, 200, res)
-}
+const LENGTH_THRESHOLD = 140
 
 func replaceProfane(s string) (cleaned string) {
 	split := strings.Split(s, " ")
@@ -56,4 +25,47 @@ func replaceProfane(s string) (cleaned string) {
 	}
 
 	return strings.Join(cleanedSplit, " ")
+}
+
+func (cfg *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
+	type reqBody struct {
+		Body   string    `json:"body"`
+		UserId uuid.UUID `json:"user_id"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	body := &reqBody{}
+	err := decoder.Decode(body)
+
+	if err != nil {
+		respondWithError(w, 400, "Unmarshaling failed")
+		return
+	}
+
+	if len(body.Body) > LENGTH_THRESHOLD {
+		respondWithError(w, 400, "Chirp is too long")
+		return
+	}
+
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		Body:   replaceProfane(body.Body),
+		UserID: body.UserId,
+	})
+
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("error creating chirp, full error: %v\n", err))
+		return
+	}
+
+	respondWithJSON(w, 201, chirp)
+}
+
+func (cfg *apiConfig) handleGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetAllChiprs(r.Context())
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("error getting all chirps, full error: %v\n", err))
+		return
+	}
+
+	respondWithJSON(w, 200, chirps)
 }
