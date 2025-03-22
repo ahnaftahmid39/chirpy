@@ -69,3 +69,20 @@ func (cfg *apiConfig) handleGetAllChirps(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, 200, chirps)
 }
+
+func (cfg *apiConfig) handleGetChirpById(w http.ResponseWriter, r *http.Request) {
+	chirpId := r.PathValue("chirpId")
+	chirpUUID, err := uuid.Parse(chirpId)
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("Invalid uuid given, full error: %v\n", err))
+		return
+	}
+
+	chirp, err := cfg.db.GetChirpById(r.Context(), chirpUUID)
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("error getting chirp by id, full error: %v\n", err))
+		return
+	}
+
+	respondWithJSON(w, 200, chirp)
+}

@@ -15,3 +15,12 @@ FROM
 -- name: DeleteAllChrips :exec
 DELETE FROM
   chirps;
+
+
+-- name: GetChirpById :one
+SELECT
+  *
+FROM
+  chirps
+WHERE
+  id = $1;
